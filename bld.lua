@@ -1,7 +1,7 @@
 return {
     {
-       artifact = "metaloader_test",
-       main = "metaloader_test.c",
+       artifact = "common_test",
+       main = "common_test.c",
        src = "src",
     },
 }
