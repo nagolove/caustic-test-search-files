@@ -19,6 +19,57 @@
 #include <stdlib.h>
 #include <string.h>
 
+static MunitResult test_base_name(
+    const MunitParameter params[], void* data
+) {
+
+    {
+        const char *out = koh_extract_path(".lua");
+        const char *ref = "";
+        munit_assert_string_equal(ref, out);
+    }
+
+    {
+        const char *out = koh_extract_path("/file");
+        const char *ref = "";
+        munit_assert_string_equal(ref, out);
+    }
+
+    {
+        // Что делать с корневым каталогом?
+        const char *out = koh_extract_path("/");
+        const char *ref = "";
+        munit_assert_string_equal(ref, out);
+    }
+
+    {
+        const char *out = koh_extract_path("/some/path/dir1/dir2/file");
+        const char *ref = "/some/path/dir1/dir2";
+        munit_assert_string_equal(ref, out);
+    }
+
+    {
+        const char *out = koh_extract_path("/some/path/file");
+        const char *ref = "/some/path";
+        munit_assert_string_equal(ref, out);
+    }
+
+    {
+        const char *out = koh_extract_path("c.lua");
+        const char *ref = "";
+        munit_assert_string_equal(ref, out);
+    }
+
+    {
+        // XXX: Удалять точку?
+        const char *out = koh_extract_path("./file.exe");
+        const char *ref = ".";
+        munit_assert_string_equal(ref, out);
+    }
+
+    return MUNIT_OK;
+}
+
 static MunitResult test_extract_filename(
     const MunitParameter params[], void* data
 ) {
@@ -94,6 +145,11 @@ static MunitTest test_suite_tests[] = {
     {
         (char*) "/extract_filename",
         test_extract_filename,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+    {
+        (char*) "/koh_basename",
+        test_base_name,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
