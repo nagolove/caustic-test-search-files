@@ -20,6 +20,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+static MunitResult test_is_pow2(
+    const MunitParameter params[], void* data
+) {
+    munit_assert(!koh_is_pow2(0));
+    munit_assert(!koh_is_pow2(1));
+    munit_assert(koh_is_pow2(2));
+    munit_assert(koh_is_pow2(32));
+    munit_assert(koh_is_pow2(64));
+    munit_assert(koh_is_pow2(2048));
+    munit_assert(!koh_is_pow2(20));
+    munit_assert(!koh_is_pow2(11));
+    return MUNIT_OK;
+}
+
 static MunitResult test_base_name(
     const MunitParameter params[], void* data
 ) {
@@ -142,14 +156,10 @@ static MunitResult test_extract_filename(
     return MUNIT_OK;
 }
 
-static MunitTest test_suite_tests[] = {
 // Проверка воспроизводимости последовательности чисел генератором при
 // заданном семени
 static MunitResult test_random(const MunitParameter params[], void* data) {
     {
-        (char*) "/extract_filename",
-        test_extract_filename,
-        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
         xorshift32_state rnd; 
         const int num = 10000;
         uint32_t rnd_values[num];
@@ -196,6 +206,11 @@ static MunitTest t_suite_common[] = {
     {
         (char*) "/koh_basename",
         test_base_name,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+    {
+        (char*) "/koh_is_pow2",
+        test_is_pow2,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
