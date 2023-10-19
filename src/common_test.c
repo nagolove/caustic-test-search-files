@@ -4,6 +4,7 @@
 #include "koh.h"
 #include "koh_common.h"
 #include "koh_metaloader.h"
+#include "koh_rand.h"
 #include "koh_set.h"
 #include "lauxlib.h"
 #include "lua.h"
@@ -142,10 +143,55 @@ static MunitResult test_extract_filename(
 }
 
 static MunitTest test_suite_tests[] = {
+// Проверка воспроизводимости последовательности чисел генератором при
+// заданном семени
+static MunitResult test_random(const MunitParameter params[], void* data) {
     {
         (char*) "/extract_filename",
         test_extract_filename,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+        xorshift32_state rnd; 
+        const int num = 10000;
+        uint32_t rnd_values[num];
+
+        memset(rnd_values, 0, sizeof(rnd_values));
+
+        uint32_t seed = 124123;
+        rnd.a = seed;
+
+        for (int j = 0; j < num; j++) {
+            rnd_values[j] = xorshift32_rand(&rnd);
+        }
+
+        rnd.a = seed;
+        for (int j = 0; j < num; j++) {
+            uint32_t value = xorshift32_rand(&rnd);
+            munit_assert_uint32(value, ==, rnd_values[j]);
+        }
+    }
+    return MUNIT_OK;
+}
+
+static MunitTest t_suite_random[] = {
+    {
+        .name =  (char*) "/random",
+        .test = test_random,
+        .setup = NULL,
+        .tear_down = NULL,
+        .options = MUNIT_TEST_OPTION_NONE,
+        .parameters = NULL,
+    },
+    { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
+};
+
+static MunitTest t_suite_common[] = {
+    {
+        .name =  (char*) "/extract_filename",
+        .test = test_extract_filename,
+        .setup = NULL,
+        .tear_down = NULL,
+        .options = MUNIT_TEST_OPTION_NONE,
+        .parameters = NULL,
     },
     {
         (char*) "/koh_basename",
@@ -155,10 +201,27 @@ static MunitTest test_suite_tests[] = {
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
 };
 
-static const MunitSuite test_suite = {
-  (char*) "common", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE
+
+static MunitSuite suite_nested[] = {
+    {
+        .prefix = (char*) "random",
+        .tests =  t_suite_random,
+        .suites = NULL,
+        .iterations = 1,
+        .options = MUNIT_SUITE_OPTION_NONE,
+    },
+    { NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE } 
+};
+
+static const MunitSuite suite_root = {
+    .prefix = (char*) "common",
+    .tests =  t_suite_common,
+    .suites = suite_nested,
+    //.suites = NULL,
+    .iterations = 1,
+    .options = MUNIT_SUITE_OPTION_NONE,
 };
 
 int main(int argc, char **argv) {
-    return munit_suite_main(&test_suite, (void*) "µnit", argc, argv);
+    return munit_suite_main(&suite_root, (void*) "µnit", argc, argv);
 }
