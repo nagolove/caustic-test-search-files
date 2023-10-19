@@ -1661,6 +1661,7 @@ munit_test_runner_run_suite(MunitTestRunner* runner,
   const MunitTest* test;
   const char** test_name;
   const MunitSuite* child_suite;
+  //printf("munit_test_runner_run_suite: child_suite %p\n", child_suite);
 
   /* Run the tests. */
   for (test = suite->tests ; test != NULL && test->test != NULL ; test++) {
@@ -1683,7 +1684,8 @@ munit_test_runner_run_suite(MunitTestRunner* runner,
 
   /* Run any child suites. */
   for (child_suite = suite->suites ; child_suite != NULL && child_suite->prefix != NULL ; child_suite++) {
-    munit_test_runner_run_suite(runner, child_suite, pre);
+    //munit_test_runner_run_suite(runner, child_suite, pre);
+    munit_test_runner_run_suite(runner, child_suite, NULL);
   }
 
  cleanup:
