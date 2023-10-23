@@ -20,6 +20,48 @@
 #include <stdlib.h>
 #include <string.h>
 
+static MunitResult test_bitstr_uint64_t(
+    const MunitParameter params[], void* data
+) {
+
+    {
+        uint64_t value = 0b000000;
+        munit_assert_string_equal(
+            to_bitstr_uint64_t(value),
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+    }
+
+    {
+        uint64_t value = 0b000001;
+        munit_assert_string_equal(
+            to_bitstr_uint64_t(value),
+            "0000000000000000000000000000000000000000000000000000000000000001"
+        );
+    }
+
+    {
+        uint64_t value = 
+            0b1100000000110000000000100000000000000000101000000000000000000011;
+        munit_assert_string_equal(
+            to_bitstr_uint64_t(value),
+            "1100000000110000000000100000000000000000101000000000000000000011"
+        );
+    }
+
+    {
+        uint64_t value = 
+            0b1000000000000000000000000000000000000000000000000000000000000000;
+        munit_assert_string_equal(
+            to_bitstr_uint64_t(value),
+            "1000000000000000000000000000000000000000000000000000000000000000"
+        );
+    }
+
+    return MUNIT_OK;
+}
+
+
 static MunitResult test_is_pow2(
     const MunitParameter params[], void* data
 ) {
@@ -211,6 +253,11 @@ static MunitTest t_suite_common[] = {
     {
         (char*) "/koh_is_pow2",
         test_is_pow2,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+    {
+        (char*) "/to_bitstr_uint64_t",
+        test_bitstr_uint64_t,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
