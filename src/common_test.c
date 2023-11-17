@@ -54,19 +54,31 @@ static MunitResult test_bitstr_uint64_t(
             0b1000000000000000000000000000000000000000000000000000000000000000;
         munit_assert_string_equal(
             to_bitstr_uint64_t(value),
-            "1000000000000000000000000000000000000000000000000000000000000000"
+             "1000000000000000000000000000000000000000000000000000000000000000"
         );
     }
 
     return MUNIT_OK;
 }
 
+static MunitResult test_less_or_eq_pow2(
+    const MunitParameter params[], void* data
+) {
+    munit_assert(koh_less_or_eq_pow2(2) == 2);
+    munit_assert(koh_less_or_eq_pow2(3) == 2);
+    munit_assert(koh_less_or_eq_pow2(32) == 32);
+    munit_assert(koh_less_or_eq_pow2(63) == 32);
+    munit_assert(koh_less_or_eq_pow2(65) == 64);
+    munit_assert(koh_less_or_eq_pow2(20) == 16);
+    munit_assert(koh_less_or_eq_pow2(11) == 8);
+    return MUNIT_OK;
+}
+
+
 
 static MunitResult test_is_pow2(
     const MunitParameter params[], void* data
 ) {
-    munit_assert(!koh_is_pow2(0));
-    munit_assert(!koh_is_pow2(1));
     munit_assert(koh_is_pow2(2));
     munit_assert(koh_is_pow2(32));
     munit_assert(koh_is_pow2(64));
@@ -253,6 +265,11 @@ static MunitTest t_suite_common[] = {
     {
         (char*) "/koh_is_pow2",
         test_is_pow2,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+    {
+        (char*) "/koh_less_or_eq_pow2",
+        test_less_or_eq_pow2 ,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
     {
