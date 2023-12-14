@@ -2,6 +2,9 @@
 // vim: fdm=marker
 
 #include "koh.h"
+#include "koh_b2.h"
+#include "box2d/box2d.h"
+#include "box2d/types.h"
 #include "koh_common.h"
 #include "koh_metaloader.h"
 #include "koh_rand.h"
@@ -20,10 +23,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+static bool verbose = false;
+
 static MunitResult test_bitstr_uint64_t(
     const MunitParameter params[], void* data
 ) {
-
+    // {{{
+    
     {
         uint64_t value = 0b000000;
         munit_assert_string_equal(
@@ -57,6 +63,7 @@ static MunitResult test_bitstr_uint64_t(
              "1000000000000000000000000000000000000000000000000000000000000000"
         );
     }
+    // }}}
 
     return MUNIT_OK;
 }
@@ -65,26 +72,28 @@ static MunitResult test_less_or_eq_pow2(
     const MunitParameter params[], void* data
 ) {
     munit_assert(koh_less_or_eq_pow2(2) == 2);
+    // {{{
     munit_assert(koh_less_or_eq_pow2(3) == 2);
     munit_assert(koh_less_or_eq_pow2(32) == 32);
     munit_assert(koh_less_or_eq_pow2(63) == 32);
     munit_assert(koh_less_or_eq_pow2(65) == 64);
     munit_assert(koh_less_or_eq_pow2(20) == 16);
     munit_assert(koh_less_or_eq_pow2(11) == 8);
+    // }}}
     return MUNIT_OK;
 }
-
-
 
 static MunitResult test_is_pow2(
     const MunitParameter params[], void* data
 ) {
     munit_assert(koh_is_pow2(2));
+    // {{{
     munit_assert(koh_is_pow2(32));
     munit_assert(koh_is_pow2(64));
     munit_assert(koh_is_pow2(2048));
     munit_assert(!koh_is_pow2(20));
     munit_assert(!koh_is_pow2(11));
+    // }}}
     return MUNIT_OK;
 }
 
@@ -98,6 +107,7 @@ static MunitResult test_base_name(
         munit_assert_string_equal(ref, out);
     }
 
+    // {{{
     {
         const char *out = koh_extract_path("/file");
         const char *ref = "";
@@ -135,6 +145,7 @@ static MunitResult test_base_name(
         const char *ref = ".";
         munit_assert_string_equal(ref, out);
     }
+    // }}}
 
     return MUNIT_OK;
 }
@@ -151,6 +162,7 @@ static MunitResult test_extract_filename(
         munit_assert_string_equal(res, out);
     }
 
+    // {{{
     {
         const char *in = "in";
         const char *res = "in";
@@ -206,6 +218,35 @@ static MunitResult test_extract_filename(
         /*printf("test_extract_filename: in '%s', out '%s'\n", in, out);*/
         munit_assert_string_equal(res, out);
     }
+    // }}}
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_concat_iter_to_allocated_str(
+    const MunitParameter params[], void* data
+) {
+    b2BodyDef bd = b2DefaultBodyDef();
+    char **lines = b2BodyDef_to_str(bd);
+
+    char *str = concat_iter_to_allocated_str(lines);
+
+    char *megabuf = malloc(4096), *pmegabuf = megabuf;
+    assert(megabuf);
+
+    while (*lines) {
+        pmegabuf += sprintf(pmegabuf, "%s", *lines);
+        if (verbose)
+            printf("%s\n", *lines);
+        lines++;
+    }
+
+    if (verbose)
+        printf("%s\n", megabuf);
+    munit_assert(!strcmp(megabuf, str));
+
+    free(megabuf);
+    free(str);
 
     return MUNIT_OK;
 }
@@ -249,6 +290,14 @@ static MunitTest t_suite_random[] = {
 };
 
 static MunitTest t_suite_common[] = {
+    {
+        .name =  (char*) "/concat_iter_to_allocated_str",
+        .test = test_concat_iter_to_allocated_str,
+        .setup = NULL,
+        .tear_down = NULL,
+        .options = MUNIT_TEST_OPTION_NONE,
+        .parameters = NULL,
+    },
     {
         .name =  (char*) "/extract_filename",
         .test = test_extract_filename,
