@@ -3,8 +3,8 @@ return {
         not_dependencies = {
             "lfs",
         },
-        artifact = "common_test",
-        main = "common_test.c",
+        artifact = "search_files_test",
+        main = "search_files_test.c",
         src = "src",
     },
 }
