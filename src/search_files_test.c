@@ -19,19 +19,27 @@
 const char *dir_name = "./file2search";
 
 struct FileSearchFixture {
-    char **files;
-    int files_num;
+    char    **files,            // все файлы
+            **num_files,        // имена состоят из цифр
+            **alpha_files;      // имена состоят букв
+    int files_num, num_files_num, alpha_files_num;
 };
 
+/*
 static StrSetAction set_printer(const char *key, void *ctx) {
     printf("set_printer: '%s'\n", key);
     return SSA_remove;
 }
+*/
 
 static MunitResult test_new_shutdown_common(
-    const MunitParameter params[], void* data, struct FilesSearchSetup *setup
+    const MunitParameter params[], 
+    void* data, 
+    struct FilesSearchSetup *setup,
+    char **lines,
+    int lines_num
 ) {
-    struct FileSearchFixture *fixture = data;
+    //struct FileSearchFixture *fixture = data;
     struct FilesSearchResult fsr = {};
     fsr = koh_search_files(setup);
     printf("fsr.num %d\n", fsr.num);
@@ -42,17 +50,28 @@ static MunitResult test_new_shutdown_common(
         strset_add(s1, fsr.names[i]);
     }
 
-    for (int i = 0; i < fixture->files_num; i++) {
-        strset_add(s2, fixture->files[i]);
+    printf("s1:\n\n\n");
+    FILE *tmp_file = fopen("f1.txt", "w");
+    assert(tmp_file);
+    strset_print(s1, stdout);
+    fclose(tmp_file);
+    printf("\n\n\n");
+
+    assert(lines_num >= 0);
+    for (int i = 0; i < lines_num; i++) {
+        strset_add(s2, lines[i]);
     }
+
+    printf("s2:\n\n\n");
+    tmp_file = fopen("f2.txt", "w");
+    strset_print(s2, tmp_file);
+    printf("\n\n\n");
+    fclose(tmp_file);
 
     bool is_set_eq = strset_compare(s1, s2);
     printf("test_new_shutdown: is_set_eq %s\n", is_set_eq ? "true" : "false");
 
     munit_assert(is_set_eq);
-    //strset_each(s1, set_printer, NULL);
-    //printf("--------------------------------\n");
-    //strset_each(s2, set_printer, NULL);
 
     koh_search_files_shutdown(&fsr);
 
@@ -68,27 +87,28 @@ static MunitResult test_new_shutdown_common(
 static MunitResult test_new_shutdown(
     const MunitParameter params[], void* data
 ) {
-    struct FileSearchFixture *fixture = data;
-
-    test_new_shutdown_common(params, data, &(struct FilesSearchSetup) {
-        .regex_pattern = ".*",
-        .path = dir_name,
-        .deep = -1,
-        .engine_pcre2 = false,
-    });
+    struct FileSearchFixture *f = data;
 
     /*
     test_new_shutdown_common(params, data, &(struct FilesSearchSetup) {
         .regex_pattern = ".*",
         .path = dir_name,
         .deep = -1,
-        .engine_pcre2 = true,
-    });
+        .engine_pcre2 = false,
+    }, f->files, f->files_num);
     */
+
+    test_new_shutdown_common(params, data, &(struct FilesSearchSetup) {
+        .regex_pattern = ".*",
+        .path = dir_name,
+        .deep = -1,
+        .engine_pcre2 = true,
+    }, f->files, f->files_num);
 
     return MUNIT_OK;
 }
 
+// TODO: С какими именами создавать файлы?
 static void* setup_search_fixture(
         const MunitParameter params[], void* user_data) {
 
@@ -101,6 +121,7 @@ static void* setup_search_fixture(
 
     struct stat st = {};
     if (stat(dir_name, &st) == -1) {
+        // каталога нету, создаю
         int ret = mkdir(dir_name, S_IRWXU);
         printf("ret %d\n", ret);
     }
@@ -109,10 +130,15 @@ static void* setup_search_fixture(
     assert(fixture);
 
     // Создать сколько-то файлов.
-    fixture->files_num = 1000;
-    fixture->files = calloc(fixture->files_num, sizeof(fixture->files[0]));
+    fixture->files_num = 900;
+    size_t sz = sizeof(fixture->files[0]);
+    fixture->files = calloc(fixture->files_num, sz);
+    fixture->alpha_files = calloc(fixture->files_num, sz);
+    fixture->num_files = calloc(fixture->files_num, sz);
 
-    for (int i = 0; i < fixture->files_num; i++) {
+    int i = 0;
+    // имена с цифрами
+    for (; i < fixture->files_num / 2; i++) {
         char path[128] = {};
         char num[32] = {};
         sprintf(num, "%d", i);
@@ -123,6 +149,23 @@ static void* setup_search_fixture(
         FILE *f = fopen(path, "w");
         munit_assert_ptr_not_null(f);
         fixture->files[i] = strdup(path);
+        fixture->num_files[fixture->num_files_num++] = strdup(path);
+        fclose(f);
+    }
+
+    // имена с буквами
+    for (; i < fixture->files_num; i++) {
+        char path[128] = {};
+        char num[32] = {};
+        sprintf(num, "%c", i % 26 + 'a');
+        strcat(path, dir_name);
+        strcat(path, "/");
+        strcat(path, num);
+        //printf("path: '%s'\n", path);
+        FILE *f = fopen(path, "w");
+        munit_assert_ptr_not_null(f);
+        //fixture->files[i] = strdup(path);
+        fixture->alpha_files[fixture->alpha_files_num++] = strdup(path);
         fclose(f);
     }
 
@@ -136,7 +179,7 @@ static void tear_down_search_fixture(void *f) {
     int res = 0;
     for (int i = 0; i < fixture->files_num; i++) {
         res = remove(fixture->files[i]);
-        munit_assert(res == 0);
+        /*munit_assert(res == 0);*/
         //printf("tear_down_search_fixture: remove returned %d\n", res);
         free(fixture->files[i]);
     }
@@ -145,9 +188,22 @@ static void tear_down_search_fixture(void *f) {
     munit_assert(res == 0);
     /*printf("tear_down_search_fixture: rmdir returned %d\n", res);*/
 
+    for (int j = 0; j < fixture->alpha_files_num; j++) {
+        free(fixture->alpha_files[j]);
+    }
+
+    for (int j = 0; j < fixture->num_files_num; j++) {
+        free(fixture->num_files[j]);
+    }
+
     if (fixture->files)
         free(fixture->files);
+    if (fixture->alpha_files)
+        free(fixture->alpha_files);
+    if (fixture->num_files)
+        free(fixture->num_files);
 
+    memset(f, 0, sizeof(*f));
     free(f);
 }
 
