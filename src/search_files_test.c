@@ -5,6 +5,7 @@
 #include "koh_common.h"
 #include "munit.h"
 #include <assert.h>
+#include <dirent.h>
 #include <memory.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -14,9 +15,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-/*static bool verbose = false;*/
-
-const char *dir_name = "./file2search";
+static const bool verbose = true;
+static const char *dir_name = "./file2search";
+static const int create_files_num = 100;
 
 struct FileSearchFixture {
     char    **files,            // все файлы
@@ -24,6 +25,8 @@ struct FileSearchFixture {
             **alpha_files;      // имена состоят букв
     int files_num, num_files_num, alpha_files_num;
 };
+
+static void tear_down_search_fixture(void *f);
 
 /*
 static StrSetAction set_printer(const char *key, void *ctx) {
@@ -41,6 +44,12 @@ static MunitResult test_new_shutdown_common(
 ) {
     //struct FileSearchFixture *fixture = data;
     struct FilesSearchResult fsr = {};
+    if (verbose) {
+        printf(
+            "test_new_shutdown_common: setup %s\n",
+            koh_files_search_setup_2str(setup)
+        );
+    }
     fsr = koh_search_files(setup);
     printf("fsr.num %d\n", fsr.num);
 
@@ -53,7 +62,7 @@ static MunitResult test_new_shutdown_common(
     printf("s1:\n\n\n");
     FILE *tmp_file = fopen("f1.txt", "w");
     assert(tmp_file);
-    strset_print(s1, stdout);
+    //strset_print(s1, stdout);
     fclose(tmp_file);
     printf("\n\n\n");
 
@@ -64,13 +73,15 @@ static MunitResult test_new_shutdown_common(
 
     printf("s2:\n\n\n");
     tmp_file = fopen("f2.txt", "w");
-    strset_print(s2, tmp_file);
+    //strset_print(s2, tmp_file);
     printf("\n\n\n");
     fclose(tmp_file);
 
     bool is_set_eq = strset_compare(s1, s2);
     printf("test_new_shutdown: is_set_eq %s\n", is_set_eq ? "true" : "false");
 
+    if (!is_set_eq)
+        tear_down_search_fixture(data);
     munit_assert(is_set_eq);
 
     koh_search_files_shutdown(&fsr);
@@ -130,7 +141,7 @@ static void* setup_search_fixture(
     assert(fixture);
 
     // Создать сколько-то файлов.
-    fixture->files_num = 900;
+    fixture->files_num = create_files_num;
     size_t sz = sizeof(fixture->files[0]);
     fixture->files = calloc(fixture->files_num, sz);
     fixture->alpha_files = calloc(fixture->files_num, sz);
@@ -172,6 +183,39 @@ static void* setup_search_fixture(
     return fixture;
 }
 
+void rmdir_recursive(const char *path) {
+    printf("rmdir_recursive: path '%s'\n", path);
+    struct dirent *entry = NULL;
+    DIR *dir = opendir(path);
+    assert(dir);
+    while ((entry = readdir(dir))) {
+        switch (entry->d_type) {
+            case DT_DIR: {
+                if (!strcmp(entry->d_name, ".") || 
+                    !strcmp(entry->d_name, ".."))
+                    break;
+
+                char new_path[1024] = {};
+
+                strcat(new_path, path);
+                strcat(new_path, "/");
+                strcat(new_path, entry->d_name);
+
+                rmdir_recursive(new_path);
+                break;
+            }
+            case DT_REG: {
+                char full_path[1024] = {};
+                sprintf(full_path, "%s/%s", path, entry->d_name);
+                printf("rmdir_recursive: DT_REG %s\n", full_path);
+                remove(full_path);
+                break;
+            }
+        }
+    }
+    closedir(dir);
+}
+
 static void tear_down_search_fixture(void *f) {
     assert(f);
     struct FileSearchFixture *fixture = f;
@@ -184,6 +228,7 @@ static void tear_down_search_fixture(void *f) {
         free(fixture->files[i]);
     }
 
+    rmdir_recursive(dir_name);
     res = rmdir(dir_name);
     munit_assert(res == 0);
     /*printf("tear_down_search_fixture: rmdir returned %d\n", res);*/
