@@ -23,8 +23,9 @@ static const int create_files_num = 100;
 
 struct FileSearchFixture {
     char    **num_files,        // имена состоят из цифр
-            **alpha_files;      // имена состоят букв
-    int     num_files_num, alpha_files_num;
+            **alpha_files,      // имена состоят букв
+            **png_files;         // какое-то-имя.png
+    int     num_files_num, alpha_files_num,  png_files_num;
 };
 
 static void tear_down_search_fixture(void *f);
@@ -73,6 +74,7 @@ static MunitResult test_new_shutdown_common(
         strset_add(s2, lines[i]);
     }
 
+    /*
     printf("s1 count %zu\n", strset_count(s1));
     printf("s1:\n\n\n");
     FILE *tmp_file = fopen("f1.txt", "w");
@@ -80,13 +82,16 @@ static MunitResult test_new_shutdown_common(
     strset_print(s1, stdout);
     fclose(tmp_file);
     printf("\n\n\n");
+    */
 
+    /*
     printf("s2 count %zu\n", strset_count(s2));
     printf("s2:\n\n\n");
     tmp_file = fopen("f2.txt", "w");
     strset_print(s2, tmp_file);
     printf("\n\n\n");
     fclose(tmp_file);
+*/
 
     bool is_set_eq = strset_compare(s1, s2);
     printf("test_new_shutdown: is_set_eq %s\n", is_set_eq ? "true" : "false");
@@ -121,7 +126,7 @@ static MunitResult test_new_shutdown(
     */
 
     test_new_shutdown_common(params, data, &(struct FilesSearchSetup) {
-        .regex_pattern = "[a-zA-Z]+",
+        .regex_pattern = "[a-zA-Z]{4}$",
         .path = dir_name,
         .deep = -1,
         .engine_pcre2 = true,
@@ -133,6 +138,13 @@ static MunitResult test_new_shutdown(
         .deep = -1,
         .engine_pcre2 = true,
     }, f->num_files, f->num_files_num);
+
+    test_new_shutdown_common(params, data, &(struct FilesSearchSetup) {
+        .regex_pattern = ".*\\.png",
+        .path = dir_name,
+        .deep = -1,
+        .engine_pcre2 = true,
+    }, f->png_files, f->png_files_num);
 
     return MUNIT_OK;
 }
@@ -165,6 +177,8 @@ static void* setup_search_fixture(
     fixture->alpha_files_num = create_files_num;
     fixture->num_files = calloc(create_files_num, sz);
     fixture->num_files_num = create_files_num;
+    fixture->png_files = calloc(create_files_num, sz);
+    fixture->png_files_num = create_files_num;
 
     // имена с цифрами
     for (int i = 0; i < fixture->num_files_num; i++) {
@@ -208,6 +222,33 @@ static void* setup_search_fixture(
         fclose(f);
     }
 
+    for (int j = 0; j < fixture->png_files_num; j++) {
+        char path[128] = {};
+        char num[64] = {}, *pnum = num;
+
+        int n = fixture->png_files_num;
+        int len = sprintf(pnum, "%c", j % 26 + 'a');
+        pnum += len;
+        while (n) {
+            int len = sprintf(pnum, "%c", rand() % 26 + 'a');
+            pnum += len;
+            n /= 10;
+        }
+        /*printf("num '%s'\n", num);*/
+
+        strcat(path, dir_name);
+        strcat(path, "/");
+        strcat(path, num);
+        strcat(path, ".png");
+
+        printf("png file '%s'\n", path);
+        FILE *f = fopen(path, "w");
+        munit_assert_ptr_not_null(f);
+        //fixture->files[i] = strdup(path);
+        fixture->png_files[j] = strdup(path);
+        fclose(f);
+    }
+
     FILE *tmp_file;
 
     tmp_file = fopen("alpha_files.txt", "w");
@@ -223,6 +264,14 @@ static void* setup_search_fixture(
         fprintf(tmp_file, "%s", fixture->num_files[i]);
     }
     fclose(tmp_file);
+
+    tmp_file = fopen("png_files.txt", "w");
+    assert(tmp_file);
+    for (int i = 0; i < fixture->png_files_num; i++) {
+        fprintf(tmp_file, "%s", fixture->png_files[i]);
+    }
+    fclose(tmp_file);
+
 
     return fixture;
 }
@@ -286,10 +335,16 @@ static void tear_down_search_fixture(void *f) {
         free(fixture->num_files[j]);
     }
 
+    for (int j = 0; j < fixture->png_files_num; j++) {
+        free(fixture->png_files[j]);
+    }
+
     if (fixture->alpha_files)
         free(fixture->alpha_files);
     if (fixture->num_files)
         free(fixture->num_files);
+    if (fixture->png_files)
+        free(fixture->png_files);
 
     free(f);
 }
@@ -317,5 +372,6 @@ static const MunitSuite suite_root = {
 
 int main(int argc, char **argv) {
     koh_hashers_init();
+    strset_verbose = false;
     return munit_suite_main(&suite_root, (void*) "µnit", argc, argv);
 }
